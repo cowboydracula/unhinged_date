@@ -1,11 +1,21 @@
 ﻿{
   "indexes": [
     {
-      "collectionGroup": "matches",
+      "collectionGroup": "profiles",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "onboardingCompleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hideMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],

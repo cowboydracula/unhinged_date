@@ -1,58 +1,114 @@
 // lib/features/swipe/swipe_card.dart
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-/// A lightweight Tinder-style swipe card.
-/// Parent should remove the card from the deck when onLike/onPass fire.
-class SwipeCard extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onLike;
-  final VoidCallback onPass;
-  final double swipeThreshold; // horizontal px to trigger
-  final double maxAngle; // degrees
-
+class SwipeCard extends StatelessWidget {
   const SwipeCard({
     super.key,
-    required this.child,
+    required this.uid,
+    required this.name,
+    required this.photos,
+    required this.bio,
+    required this.soberSince,
     required this.onLike,
     required this.onPass,
-    this.swipeThreshold = 120,
-    this.maxAngle = 15,
+    required this.onBlock,
   });
 
+  final String uid;
+  final String name;
+  final List<String> photos;
+  final String bio;
+  final DateTime? soberSince;
+
+  final VoidCallback onLike;
+  final VoidCallback onPass;
+  final VoidCallback onBlock;
+
   @override
-  State<SwipeCard> createState() => _SwipeCardState();
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final displayName = name.isEmpty ? '—' : name;
+    final streakDays = soberSince == null
+        ? null
+        : DateTime.now().difference(soberSince!).inDays;
+
+    return Card(
+      color: scheme.surface,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Photos
+          AspectRatio(
+            aspectRatio: 3 / 4,
+            child: photos.isEmpty
+                ? Container(
+                    color: scheme.surfaceVariant,
+                    child: const Center(child: Icon(Icons.person, size: 64)),
+                  )
+                : _PhotoPager(photos: photos),
+          ),
+
+          // Info + actions
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Name + streak
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        displayName,
+                        style: Theme.of(context).textTheme.titleLarge,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (streakDays != null)
+                      Row(
+                        children: [
+                          const Icon(Icons.emoji_events_outlined, size: 18),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${streakDays}d sober',
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                if (bio.isNotEmpty)
+                  Text(
+                    bio,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                const SizedBox(height: 10),
+                _ActionsRow(onLike: onLike, onPass: onPass, onBlock: onBlock),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _SwipeCardState extends State<SwipeCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  Offset _offset = Offset.zero; // drag offset
-  bool _animatingBack = false;
+class _PhotoPager extends StatefulWidget {
+  const _PhotoPager({required this.photos});
+  final List<String> photos;
 
   @override
-  void initState() {
-    super.initState();
-    _controller =
-        AnimationController(
-            vsync: this,
-            duration: const Duration(milliseconds: 220),
-          )
-          ..addListener(() {
-            if (_animatingBack) {
-              setState(() {
-                _offset = Offset.lerp(_offset, Offset.zero, _controller.value)!;
-              });
-            }
-          })
-          ..addStatusListener((status) {
-            if (status == AnimationStatus.completed && _animatingBack) {
-              _animatingBack = false;
-              _controller.reset();
-              setState(() => _offset = Offset.zero);
-            }
-          });
-  }
+  State<_PhotoPager> createState() => _PhotoPagerState();
+}
+
+class _PhotoPagerState extends State<_PhotoPager> {
+  final _controller = PageController();
+  int _index = 0;
 
   @override
   void dispose() {
@@ -60,104 +116,101 @@ class _SwipeCardState extends State<SwipeCard>
     super.dispose();
   }
 
-  void _animateBack() {
-    _animatingBack = true;
-    _controller.forward(from: 0);
-  }
-
-  void _onPanUpdate(DragUpdateDetails d) {
-    setState(() => _offset += d.delta);
-  }
-
-  void _onPanEnd(DragEndDetails d) {
-    final dx = _offset.dx;
-    if (dx > widget.swipeThreshold) {
-      widget.onLike(); // parent removes this card
-      return;
-    }
-    if (dx < -widget.swipeThreshold) {
-      widget.onPass();
-      return;
-    }
-    _animateBack();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final angle = (_offset.dx / 300) * (widget.maxAngle * math.pi / 180);
-    final opacity = (_offset.dx.abs() / widget.swipeThreshold)
-        .clamp(0, 1)
-        .toDouble();
-    final isLike = _offset.dx > 0;
-
-    return GestureDetector(
-      onPanUpdate: _onPanUpdate,
-      onPanEnd: _onPanEnd,
-      child: Transform.translate(
-        offset: _offset,
-        child: Transform.rotate(
-          angle: angle,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Material(
-                  elevation: 2,
-                  borderRadius: BorderRadius.circular(16),
-                  child: widget.child,
-                ),
-              ),
-              // LIKE / NOPE ribbons
-              Positioned(
-                top: 24,
-                left: 24,
-                child: Opacity(
-                  opacity: isLike ? opacity : 0,
-                  child: _Ribbon(text: 'LIKE', color: Colors.green),
-                ),
-              ),
-              Positioned(
-                top: 24,
-                right: 24,
-                child: Opacity(
-                  opacity: !isLike ? opacity : 0,
-                  child: _Ribbon(text: 'NOPE', color: Colors.red),
-                ),
-              ),
-            ],
-          ),
+    final photos = widget.photos;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          controller: _controller,
+          itemCount: photos.length,
+          onPageChanged: (i) => setState(() => _index = i),
+          itemBuilder: (_, i) => Image.network(photos[i], fit: BoxFit.cover),
         ),
-      ),
+        if (photos.length > 1)
+          Positioned(
+            left: 8,
+            right: 8,
+            bottom: 8,
+            child: _Dots(count: photos.length, index: _index),
+          ),
+      ],
     );
   }
 }
 
-class _Ribbon extends StatelessWidget {
-  final String text;
-  final Color color;
-  const _Ribbon({required this.text, required this.color});
+class _Dots extends StatelessWidget {
+  const _Dots({required this.count, required this.index});
+  final int count;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: -12 * math.pi / 180,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          border: Border.all(color: color, width: 3),
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.white.withOpacity(0.75),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.5,
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(count, (i) {
+        final active = i == index;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: active ? 16 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: active ? scheme.primary : scheme.surfaceVariant,
+            borderRadius: BorderRadius.circular(6),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _ActionsRow extends StatelessWidget {
+  const _ActionsRow({
+    required this.onLike,
+    required this.onPass,
+    required this.onBlock,
+  });
+
+  final VoidCallback onLike;
+  final VoidCallback onPass;
+  final VoidCallback onBlock;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget pill({
+      required IconData icon,
+      required String label,
+      required VoidCallback onTap,
+    }) {
+      return Expanded(
+        child: OutlinedButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon),
+          label: Text(label),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            foregroundColor: scheme.onSurface,
+            side: BorderSide(color: scheme.outlineVariant),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
         ),
-      ),
+      );
+    }
+
+    return Row(
+      children: [
+        pill(icon: Icons.clear_rounded, label: 'Pass', onTap: onPass),
+        const SizedBox(width: 8),
+        pill(icon: Icons.favorite_border, label: 'Like', onTap: onLike),
+        const SizedBox(width: 8),
+        pill(icon: Icons.block, label: 'Block', onTap: onBlock),
+      ],
     );
   }
 }

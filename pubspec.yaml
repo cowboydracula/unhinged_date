@@ -30,14 +30,19 @@ dependencies:
   sign_in_with_apple: ^7.0.1
 
   # Device/services
+  cloud_functions: ^6.0.0
   geolocator: ^11.1.0
   image_picker: ^1.1.2
   shared_preferences: ^2.5.3
   flutter_local_notifications: ^19.4.0
 
+  # Testing
+  faker: ^2.1.0
+
   # UI/data utils
   cached_network_image: ^3.4.1
   crypto: ^3.0.3
+  google_fonts: ^6.2.1
   intl: ^0.20.2
   uuid: ^4.5.1
   timeago: ^3.6.1
@@ -46,8 +51,19 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
   flutter_lints: ^6.0.0
 
 flutter:
-
   uses-material-design: true
+  assets:
+    - assets/brand/unhinged_icon.svg
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: assets/brand/unhinged_icon.png
+  min_sdk_android: 23
+  adaptive_icon_background: "#282A36"
+  adaptive_icon_foreground: assets/brand/unhinged_icon.png
+

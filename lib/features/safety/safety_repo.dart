@@ -1,45 +1,43 @@
+// lib/features/safety/safety_repo.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-final _db = FirebaseFirestore.instance;
-final _auth = FirebaseAuth.instance;
-
+/// Safety / blocking utilities (client only writes/reads *own* list).
+/// No "who blocked me" reads here; server feed handles that.
 class SafetyRepo {
-  Future<void> block(String subjectUid, {String? reason}) async {
-    final me = _auth.currentUser!.uid;
-    await _db.doc('blocks/$me/blocked/$subjectUid').set({
-      'createdAt': FieldValue.serverTimestamp(),
-      if (reason != null) 'reason': reason,
-    });
-  }
+  SafetyRepo(this._db);
+  final FirebaseFirestore _db;
 
-  Future<void> report(String subjectUid, String reason) async {
-    final me = _auth.currentUser!.uid;
-    await _db.collection('reports').add({
-      'actorUid': me,
-      'subjectUid': subjectUid,
-      'reason': reason,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  Future<Set<String>> myBlocked() async {
-    final me = _auth.currentUser!.uid;
-    final qs = await _db
+  /// Block [subjectUid] by [me].
+  Future<void> blockUser(String me, String subjectUid) async {
+    await _db
         .collection('blocks')
         .doc(me)
         .collection('blocked')
-        .get();
-    return qs.docs.map((d) => d.id).toSet();
+        .doc(subjectUid)
+        .set({
+          'blockerUid': me,
+          'subjectUid': subjectUid,
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
-  // Optional: who blocked me (to fully filter)
-  Future<Set<String>> whoBlockedMe() async {
-    final me = _auth.currentUser!.uid;
-    final qs = await _db
-        .collectionGroup('blocked')
-        .where(FieldPath.documentId, isEqualTo: me)
-        .get();
-    return qs.docs.map((d) => d.reference.parent.parent!.id).toSet();
+  /// Unblock [subjectUid] by [me].
+  Future<void> unblockUser(String me, String subjectUid) async {
+    await _db
+        .collection('blocks')
+        .doc(me)
+        .collection('blocked')
+        .doc(subjectUid)
+        .delete();
+  }
+
+  /// Live stream of UIDs I have blocked (owner-only).
+  Stream<Set<String>> blockedByMeStream(String me) {
+    return _db
+        .collection('blocks')
+        .doc(me)
+        .collection('blocked')
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => d.id).toSet());
   }
 }

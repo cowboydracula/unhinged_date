@@ -1,57 +1,71 @@
 // firestore.rules
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{db}/documents {
+  match /databases/{database}/documents {
 
-    function isSignedIn() { return request.auth != null; }
-    function isSelf(uid) { return isSignedIn() && request.auth.uid == uid; }
-    function me() { return request.auth.uid; }
+    function signedIn() { return request.auth != null; }
 
-    // Profiles (public-ish; we only store coarse location)
+    // --- profiles ---
     match /profiles/{uid} {
-      allow read: if true;
-      allow create, update: if isSelf(uid);
-      allow delete: if isSelf(uid);
-    }
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn() && request.auth.uid == uid;
 
-    // Likes (only the liker can read)
-    match /likes/{likeId} {
-      allow create: if isSignedIn()
-        && request.resource.data.fromUid == me()
-        && request.resource.data.fromUid != request.resource.data.toUid;
-      allow read, delete: if isSignedIn() && resource.data.fromUid == me();
-      allow update: if false;
-    }
-
-    // Blocks (owned subcollection)
-    match /blocks/{uid}/blocked/{subject} {
-      allow read, write: if isSelf(uid);
-    }
-
-    // Reports (write-only to users)
-    match /reports/{id} {
-      allow create: if isSignedIn() && request.resource.data.actorUid == me();
-      allow read, update, delete: if false;
-    }
-
-    // Matches + messages (created by Function)
-    match /matches/{matchId} {
-      allow read: if isSignedIn() && resource.data.participants.hasAny([me()]);
-      allow create, update, delete: if false;
-
-      match /messages/{msgId} {
-        allow read: if isSignedIn()
-          && get(/databases/$(db)/documents/matches/$(matchId)).data.participants.hasAny([me()]);
-        allow create: if isSignedIn()
-          && request.resource.data.senderUid == me()
-          && get(/databases/$(db)/documents/matches/$(matchId)).data.participants.hasAny([me()]);
-        allow update, delete: if false;
+      match /tokens/{token} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
       }
     }
 
-    // Private daily check-ins
-    match /profiles/{uid}/checkins/{day} {
-      allow read, write: if isSelf(uid);
+    // --- blocks ---
+    // Only the blocker can read/write their block list.
+    match /blocks/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+
+      match /blocked/{subjectUid} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn()
+                      && request.auth.uid == uid
+                      && request.resource.data.blockerUid == uid
+                      && request.resource.data.subjectUid == subjectUid;
+        allow delete: if signedIn() && request.auth.uid == uid;
+        allow update: if false;
+      }
     }
+
+    // No collection-group read for subjects. They cannot enumerate who blocked them.
+    match /{any=**}/blocked/{subjectUid} {
+      allow read, write: if false;
+    }
+
+    // --- likes ---
+    match /likes/{likeId} {
+      allow create: if signedIn() && request.resource.data.fromUid == request.auth.uid;
+      allow read: if signedIn() && (
+        resource.data.fromUid == request.auth.uid ||
+        resource.data.toUid == request.auth.uid
+      );
+      allow delete: if signedIn() && resource.data.fromUid == request.auth.uid;
+      allow update: if false;
+    }
+
+    // --- matches (participant-only visibility; supports collectionGroup) ---
+    function isParticipantDoc(d) {
+      return (('members' in d.data) && request.auth.uid in d.data.members)
+          || (('participants' in d.data) && request.auth.uid in d.data.participants);
+    }
+
+    match /{p=**}/matches/{matchId} {
+      allow read: if signedIn() && isParticipantDoc(resource);
+      allow create, update, delete: if false; // typically via Functions
+    }
+
+    match /{p=**}/matches/{matchId}/messages/{msgId} {
+      allow read, create: if signedIn() && isParticipantDoc(
+        get(/databases/$(database)/documents/$(p)/matches/$(matchId))
+      );
+      allow update, delete: if false;
+    }
+
+    // deny everything else
+    match /{document=**} { allow read, write: if false; }
   }
 }

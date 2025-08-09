@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'features/auth/auth_gate.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/profile/edit_profile_screen.dart';
+import 'features/profile/onboarding_flow.dart';
 import 'features/swipe/swipe_screen.dart';
 import 'features/chat/chat_list_screen.dart';
 import 'features/chat/chat_screen.dart';
-import 'features/profile/edit_profile_screen.dart';
 
-/// Listenable that refreshes the router whenever the stream emits.
 class _StreamListenable<T> extends ChangeNotifier {
   late final StreamSubscription<T> _sub;
   _StreamListenable(Stream<T> stream) {
@@ -24,7 +25,6 @@ class _StreamListenable<T> extends ChangeNotifier {
 }
 
 class AppRouter {
-  // Keep a single instance so it isn’t GC’d.
   static final _authRefresh = _StreamListenable<User?>(
     FirebaseAuth.instance.authStateChanges(),
   );
@@ -34,15 +34,17 @@ class AppRouter {
     debugLogDiagnostics: true,
     refreshListenable: _authRefresh,
     redirect: (context, state) {
+      // let the AuthGate decide; only handle the login page redirect here
       final user = FirebaseAuth.instance.currentUser;
-      final loggingIn = state.matchedLocation == '/signin';
-      if (user == null) return loggingIn ? null : '/signin';
-      if (loggingIn) return '/';
+      final atSignin = state.matchedLocation == '/signin';
+      if (user == null) return atSignin ? null : '/signin';
+      if (atSignin) return '/';
       return null;
     },
     routes: [
       GoRoute(path: '/signin', builder: (_, __) => const SignInScreen()),
-      GoRoute(path: '/', builder: (_, __) => const SwipeScreen()),
+      GoRoute(path: '/', builder: (_, __) => const AuthGate()), // 👈 gate
+      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingFlow()),
       GoRoute(
         path: '/edit-profile',
         builder: (_, __) => const EditProfileScreen(),
