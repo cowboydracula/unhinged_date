@@ -1,0 +1,57 @@
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isSelf(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function me() { return request.auth.uid; }
+
+    // Profiles (public-ish; we only store coarse location)
+    match /profiles/{uid} {
+      allow read: if true;
+      allow create, update: if isSelf(uid);
+      allow delete: if isSelf(uid);
+    }
+
+    // Likes (only the liker can read)
+    match /likes/{likeId} {
+      allow create: if isSignedIn()
+        && request.resource.data.fromUid == me()
+        && request.resource.data.fromUid != request.resource.data.toUid;
+      allow read, delete: if isSignedIn() && resource.data.fromUid == me();
+      allow update: if false;
+    }
+
+    // Blocks (owned subcollection)
+    match /blocks/{uid}/blocked/{subject} {
+      allow read, write: if isSelf(uid);
+    }
+
+    // Reports (write-only to users)
+    match /reports/{id} {
+      allow create: if isSignedIn() && request.resource.data.actorUid == me();
+      allow read, update, delete: if false;
+    }
+
+    // Matches + messages (created by Function)
+    match /matches/{matchId} {
+      allow read: if isSignedIn() && resource.data.participants.hasAny([me()]);
+      allow create, update, delete: if false;
+
+      match /messages/{msgId} {
+        allow read: if isSignedIn()
+          && get(/databases/$(db)/documents/matches/$(matchId)).data.participants.hasAny([me()]);
+        allow create: if isSignedIn()
+          && request.resource.data.senderUid == me()
+          && get(/databases/$(db)/documents/matches/$(matchId)).data.participants.hasAny([me()]);
+        allow update, delete: if false;
+      }
+    }
+
+    // Private daily check-ins
+    match /profiles/{uid}/checkins/{day} {
+      allow read, write: if isSelf(uid);
+    }
+  }
+}

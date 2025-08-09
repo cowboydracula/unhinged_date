@@ -1,0 +1,13 @@
+﻿{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": {
+    "source": "functions",
+    "predeploy": [
+      "npm.cmd --prefix \"%RESOURCE_DIR%\" ci",
+      "npm.cmd --prefix \"%RESOURCE_DIR%\" run build"
+    ]
+  }
+}

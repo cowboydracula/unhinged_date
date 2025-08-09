@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "840595886721",
+    "project_id": "unhinged-date",
+    "storage_bucket": "unhinged-date.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:840595886721:android:625299b3bcd45937233380",
+        "android_client_info": {
+          "package_name": "com.example.unhinged_date"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4P7aBZyESiGEHSssNAu-WYmCRNYjpwZU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
