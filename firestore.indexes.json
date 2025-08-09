@@ -4,18 +4,9 @@
       "collectionGroup": "profiles",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "onboardingCompleted",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "hideMode",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAt",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "onboardingCompleted", "order": "ASCENDING" },
+        { "fieldPath": "hideMode", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     }
   ],
