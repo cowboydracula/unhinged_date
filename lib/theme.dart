@@ -36,11 +36,9 @@ class AppTheme {
       onError: Colors.black,
       errorContainer: Color(0xFFB23B3B),
       onErrorContainer: _fg,
-      background: _bg,
-      onBackground: _fg,
       surface: _surface,
       onSurface: _fg,
-      surfaceVariant: _surfaceVariant,
+      surfaceContainerHighest: _surfaceVariant,
       onSurfaceVariant: Color(0xFFDBDCE6),
       outline: _outline,
       outlineVariant: _surfaceVariant,
@@ -54,8 +52,8 @@ class AppTheme {
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.background,
-      canvasColor: scheme.background,
+      scaffoldBackgroundColor: scheme.surface,
+      canvasColor: scheme.surface,
     );
 
     // Inter Tight everywhere
@@ -118,7 +116,7 @@ class AppTheme {
         selectedColor: scheme.primaryContainer,
         secondarySelectedColor: scheme.secondaryContainer,
         side: BorderSide(color: scheme.outlineVariant),
-        backgroundColor: scheme.surfaceVariant,
+        backgroundColor: scheme.surfaceContainerHighest,
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         showDragHandle: true,

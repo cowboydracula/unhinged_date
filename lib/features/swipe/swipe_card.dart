@@ -44,7 +44,7 @@ class SwipeCard extends StatelessWidget {
             aspectRatio: 3 / 4,
             child: photos.isEmpty
                 ? Container(
-                    color: scheme.surfaceVariant,
+                    color: scheme.surfaceContainerHighest,
                     child: const Center(child: Icon(Icons.person, size: 64)),
                   )
                 : _PhotoPager(photos: photos),
@@ -157,7 +157,7 @@ class _Dots extends StatelessWidget {
           width: active ? 16 : 8,
           height: 8,
           decoration: BoxDecoration(
-            color: active ? scheme.primary : scheme.surfaceVariant,
+            color: active ? scheme.primary : scheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(6),
           ),
         );

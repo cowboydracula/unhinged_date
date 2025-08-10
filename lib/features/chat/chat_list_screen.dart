@@ -192,7 +192,7 @@ class _Avatar extends StatelessWidget {
     }
     return CircleAvatar(
       radius: 24,
-      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: ClipOval(
         child: CachedNetworkImage(
           imageUrl: url!,

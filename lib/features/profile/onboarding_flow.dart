@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -42,16 +41,16 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   String _genderIdentity = 'Prefer not to say';
 
   // Step 5 (location)
-  bool? _locationConsent; // null = undecided, true/false = chosen
+  bool? _locationConsent;
   Position? _pos;
 
   // Step 6 (notifications)
-  bool? _notifChoice; // null = undecided, true/false = chosen
+  bool? _notifChoice;
   String? _fcmToken;
 
   // Photos
   final _picker = ImagePicker();
-  final _photos = <String>[]; // download URLs
+  final _photos = <String>[];
 
   bool _busy = false;
   int _step = 0;
@@ -72,6 +71,29 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     super.dispose();
   }
 
+  DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    if (v is String && v.isNotEmpty) return DateTime.tryParse(v);
+    try {
+      final seconds = (v as dynamic).seconds as int?;
+      final nanos = (v as dynamic).nanoseconds as int? ?? 0;
+      if (seconds != null) {
+        return DateTime.fromMillisecondsSinceEpoch(
+          seconds * 1000 + (nanos ~/ 1e6),
+        );
+      }
+    } catch (_) {}
+    try {
+      final m = v as Map<String, dynamic>;
+      final s = m['_seconds'] as int?;
+      final n = m['_nanoseconds'] as int? ?? 0;
+      if (s != null) {
+        return DateTime.fromMillisecondsSinceEpoch(s * 1000 + (n ~/ 1e6));
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _prefill() async {
     final doc = await _db.collection('profiles').doc(_uid).get();
     final data = doc.data() ?? {};
@@ -80,10 +102,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     _program = (data['program'] ?? 'None') as String;
     _showStreak = (data['showStreak'] ?? false) as bool;
 
-    final dobStr = (data['dob'] ?? '') as String;
-    if (dobStr.isNotEmpty) _dob = DateTime.tryParse(dobStr);
-    final soberStr = (data['soberDate'] ?? '') as String;
-    if (soberStr.isNotEmpty) _soberDate = DateTime.tryParse(soberStr);
+    _dob = _parseDate(data['dob']);
+    _soberDate = _parseDate(data['soberDate']);
 
     final ageMin = (data['minAge'] ?? 21) as int;
     final ageMax = (data['maxAge'] ?? 60) as int;
@@ -108,6 +128,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       'displayName': _name.text.trim(),
       'dob': _dob?.toIso8601String(),
       'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
@@ -156,11 +177,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   Future<void> _saveNotifChoice() async {
     await _db.collection('profiles').doc(_uid).set({
       'notificationsEnabled': _notifChoice ?? false,
-      'fcmToken': _fcmToken, // optional; convenient for quick tests
+      'fcmToken': _fcmToken,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    // Better pattern: also store per-token docs (multi-device safe)
     if (_fcmToken != null) {
       await _db
           .collection('profiles')
@@ -188,12 +208,15 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       );
       if (x == null) return;
       setState(() => _busy = true);
+
       final url = await StorageService().uploadXFile(x);
+
       _photos.add(url);
       await _db.collection('profiles').doc(_uid).set({
         'photos': FieldValue.arrayUnion([url]),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      if (mounted) setState(() {});
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -213,7 +236,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       }, SetOptions(merge: true));
       _photos.remove(url);
       await StorageService().deleteByUrl(url);
-      setState(() {});
+      if (mounted) setState(() {});
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -305,19 +328,18 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       case 1:
         return _photos.isNotEmpty;
       case 2:
-        return true; // bio/program optional
+        return true;
       case 3:
-        return true; // prefs always valid
+        return true;
       case 4:
-        // if Custom pronouns chosen, require text
         if (_pronouns == 'Custom') {
           return _customPronouns.text.trim().isNotEmpty;
         }
         return true;
       case 5:
-        return _locationConsent != null; // user chose enable/skip
+        return _locationConsent != null;
       case 6:
-        return _notifChoice != null; // user chose enable/skip
+        return _notifChoice != null;
       default:
         return false;
     }
@@ -338,7 +360,6 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         await _saveLocationConsent();
       } else if (_step == 6) {
         await _saveNotifChoice();
-        // Mark onboarding complete at the very end
         await _db.collection('profiles').doc(_uid).set({
           'onboardingCompleted': true,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -465,7 +486,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   }
 }
 
-// ---------- UI bits (unchanged & new) ----------
+// ---------- UI bits ----------
 
 class _StepperHeader extends StatelessWidget {
   final int current;
@@ -484,7 +505,7 @@ class _StepperHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: active
                   ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.surfaceVariant,
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(6),
             ),
           ),
@@ -574,28 +595,31 @@ class _StepPhotos extends StatelessWidget {
             crossAxisSpacing: 8,
             children: [
               for (final url in photos)
-                Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.network(url, fit: BoxFit.cover),
-                    Positioned(
-                      right: 4,
-                      top: 4,
-                      child: IconButton.filled(
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black54,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(url, fit: BoxFit.cover),
+                      Positioned(
+                        right: 4,
+                        top: 4,
+                        child: IconButton.filled(
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.black54,
+                          ),
+                          icon: const Icon(Icons.close),
+                          onPressed: busy ? null : () => onRemove(url),
                         ),
-                        icon: const Icon(Icons.close),
-                        onPressed: busy ? null : () => onRemove(url),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               InkWell(
                 onTap: busy ? null : onAdd,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceVariant,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Center(child: Icon(Icons.add_a_photo_outlined)),
@@ -831,7 +855,7 @@ class _StepLocation extends StatelessWidget {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 8),
-        Text(
+        const Text(
           'We use your approximate location to show nearby profiles. '
           'You can change this later.',
         ),
@@ -888,7 +912,7 @@ class _StepNotifications extends StatelessWidget {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 8),
-        Text(
+        const Text(
           'We’ll let you know about new matches and messages. '
           'You can turn this off anytime in Settings.',
         ),

@@ -86,7 +86,7 @@ class FeedRepo {
         if (uid == null || dataRaw is! Map) continue;
 
         if (_seenUids.add(uid)) {
-          final data = Map<String, dynamic>.from(dataRaw as Map);
+          final data = Map<String, dynamic>.from(dataRaw);
           out.add(Profile.fromDoc(uid, data));
           if (out.length >= pageLimit) break;
         }

@@ -209,6 +209,8 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 }
 */
+library;
+
 
 // lib/features/auth/sign_in_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -263,10 +265,9 @@ class _SignInScreenState extends State<SignInScreen> {
         await FirebaseAuth.instance.signInWithPopup(provider);
       } else {
         // Requires: await GoogleSignIn.instance.initialize(); in main()
-        final googleUser = await GoogleSignIn.instance.authenticate();
-        if (googleUser == null) return; // user cancelled
+        final googleUser = await GoogleSignIn.instance.authenticate(); // user cancelled
 
-        final tokens = await googleUser.authentication;
+        final tokens = googleUser.authentication;
         final cred = GoogleAuthProvider.credential(
           idToken: tokens.idToken, // accessToken not needed for Firebase
         );
@@ -349,8 +350,9 @@ class _SignInScreenState extends State<SignInScreen> {
                                     } catch (e) {
                                       _snack('Seed error: $e');
                                     } finally {
-                                      if (mounted)
+                                      if (mounted) {
                                         setState(() => _busy = false);
+                                      }
                                     }
                                   },
                             child: const Text('Seed 40 fake profiles (dev)'),
@@ -372,8 +374,9 @@ class _SignInScreenState extends State<SignInScreen> {
                                     } catch (e) {
                                       _snack('Delete error: $e');
                                     } finally {
-                                      if (mounted)
+                                      if (mounted) {
                                         setState(() => _busy = false);
+                                      }
                                     }
                                   },
                             child: const Text('Delete fake profiles (dev)'),

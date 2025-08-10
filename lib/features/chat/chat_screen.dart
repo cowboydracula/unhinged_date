@@ -234,7 +234,7 @@ class _AvatarSmall extends StatelessWidget {
     }
     return CircleAvatar(
       radius: 16,
-      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: ClipOval(
         child: CachedNetworkImage(
           imageUrl: url!,
@@ -263,7 +263,7 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = isMe
         ? Theme.of(context).colorScheme.primaryContainer
-        : Theme.of(context).colorScheme.surfaceVariant;
+        : Theme.of(context).colorScheme.surfaceContainerHighest;
     final fg = isMe
         ? Theme.of(context).colorScheme.onPrimaryContainer
         : Theme.of(context).colorScheme.onSurfaceVariant;
